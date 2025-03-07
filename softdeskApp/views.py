@@ -1,8 +1,8 @@
 from django.shortcuts import render
-from rest_framework import viewsets
+from rest_framework import viewsets, generics
 
-from softdeskApp.models import Project
-from softdeskApp.serializers import ProjectSerializer
+from softdeskApp.models import Project, User
+from softdeskApp.serializers import ProjectSerializer, UserSerializer
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -20,3 +20,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         print("Response data:", response.data)
 
         return response
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
