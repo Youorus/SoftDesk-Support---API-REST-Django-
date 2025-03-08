@@ -23,8 +23,6 @@ class User(AbstractUser):
     )
 
     def save(self, *args, **kwargs):
-        if self.age < 15:
-            raise ValueError("L'utilisateur doit avoir plus de 15 ans pour consentir à la collecte des données.")
         super().save(*args, **kwargs)
 
 
@@ -47,6 +45,7 @@ class Project(models.Model):
     description = models.TextField(null=True, blank=True)
     type = models.CharField(max_length=10, choices=PROJECT_TYPES)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_projects")
+    contributors = models.ManyToManyField(User, through='Contributor', related_name='projects')  # relier via 'Contributor'
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -55,15 +54,23 @@ class Project(models.Model):
 # 3. CONTRIBUTOR MODEL
 class Contributor(models.Model):
     CONTRIBUTOR = 'contributor'
-    ROLE_CHOICES = [(CONTRIBUTOR, 'Contributor')]
+    AUTHOR = 'author'  # Ajouter le rôle 'AUTHOR'
+    ROLE_CHOICES = [(CONTRIBUTOR, 'Contributor'), (AUTHOR, 'Author')]  # Définir les rôles possibles
 
-    id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="contributors")
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="contributors_set")  # Change le related_name ici
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR)  # 'CONTRIBUTOR' par défaut
 
     class Meta:
         unique_together = ('user', 'project')
+
+    def save(self, *args, **kwargs):
+        # Si l'utilisateur n'est pas l'auteur du projet, forcer le rôle à 'CONTRIBUTOR' par défaut
+        if self.user != self.project.author and not self.role:
+            self.role = self.CONTRIBUTOR
+        super().save(*args, **kwargs)
+
+
 
 # 4. ISSUE MODEL
 class Issue(models.Model):

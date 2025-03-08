@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-'rest_framework_simplejwt',
+    'rest_framework_simplejwt',
     'softdeskApp'
 ]
 
@@ -45,16 +45,20 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',  # Utilisation de JWT pour l'authentification
     ],
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
 
 # Pour définir la durée de validité des tokens
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Durée de validité du token d'accès
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Durée de validité du token d'accès
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Durée de validité du refresh token
-    'ROTATE_REFRESH_TOKENS': False,  # Pas de rotation des refresh tokens
+    'ROTATE_REFRESH_TOKENS': True,  # Pas de rotation des refresh tokens
     'BLACKLIST_AFTER_ROTATION': True,  # Option pour lister les tokens invalidés
     "USER_ID_FIELD": "id",  # S'assurer que Django comprend que l'ID est un UUID
     "USER_ID_CLAIM": "user_id",  # JWT inclut l'UUID correct
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 

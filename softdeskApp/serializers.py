@@ -35,10 +35,51 @@ class UserSerializer(serializers.ModelSerializer):
 
 # Serializer pour le modèle Project
 class ProjectSerializer(serializers.ModelSerializer):
+    author = serializers.ReadOnlyField(source='author.username')
+
+    # Validation du nom
+    name = serializers.CharField(
+        min_length=3,
+        max_length=100,
+        error_messages={
+            'min_length': "Le nom du projet doit contenir au moins 3 caractères.",
+            'max_length': "Le nom du projet ne doit pas dépasser 100 caractères."
+        }
+    )
+
+    # Validation du type avec une liste restreinte de choix
+    TYPE_CHOICES = ['Back-end', 'Front-end', 'iOS', 'Android']
+    type = serializers.ChoiceField(
+        choices=TYPE_CHOICES,
+        error_messages={'invalid_choice': "Le type doit être 'Back-end', 'Front-end', 'iOS' ou 'Android'."}
+    )
+
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'created_at', 'author']  # Remplace par tes champs réels
+        fields = ['id', 'name', 'description', 'type', 'author', 'created_at']
+        read_only_fields = ['id', 'author', 'created_at']
 
+    # Validation personnalisée du nom pour éviter les noms vides ou avec juste des espaces
+    def validate_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Le nom du projet ne peut pas être vide ou composé uniquement d'espaces.")
+        return value
+
+class ContributorSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
+
+    class Meta:
+        model = Contributor
+        fields = ['id', 'user', 'project', 'role']
+        read_only_fields = ['id']
+
+    def validate_user(self, value):
+        """ Vérifie qu'un utilisateur ne peut pas être contributeur deux fois pour le même projet. """
+        project = self.initial_data.get('project')
+        if Contributor.objects.filter(user=value, project=project).exists():
+            raise serializers.ValidationError("Cet utilisateur est déjà contributeur de ce projet.")
+        return value
 
 
 # Serializer pour le modèle Issue

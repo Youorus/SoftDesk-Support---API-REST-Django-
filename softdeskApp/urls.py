@@ -1,17 +1,16 @@
-# softdeskApp/urls.py
-from django.urls import path
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ProjectViewSet, UserViewSet, CustomTokenObtainPairView
-from rest_framework_simplejwt import views as jwt_views
+from .views import ProjectViewSet, UserViewSet, CustomTokenObtainPairView, TokenRefreshView, CreateUserView
 
 router = DefaultRouter()
-router.register(r'projects', ProjectViewSet, basename='project')  # Enregistre les projets
-router.register(r'users', UserViewSet, basename='user')  # Enregistre les utilisateurs
+router.register(r'projects', ProjectViewSet, basename='project')  # Route pour les projets
+router.register(r'users', UserViewSet, basename='user')  # Route pour les utilisateurs
 
-# Ajouter les endpoints pour l'authentification JWT
 urlpatterns = [
     # Authentification : obtenir un access token et un refresh token
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     # Actualiser l'access token à part du refresh token
-    path('token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
-] + router.urls  # Inclure les routes du routeur
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # Création d'un utilisateur
+    path('create_user/', CreateUserView.as_view(), name='create_user'),
+] + router.urls  # Inclure les routes du routeur pour les projets et utilisateurs
