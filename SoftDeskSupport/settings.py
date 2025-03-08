@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -37,8 +37,26 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+'rest_framework_simplejwt',
     'softdeskApp'
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Utilisation de JWT pour l'authentification
+    ],
+}
+
+# Pour définir la durée de validité des tokens
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Durée de validité du token d'accès
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Durée de validité du refresh token
+    'ROTATE_REFRESH_TOKENS': False,  # Pas de rotation des refresh tokens
+    'BLACKLIST_AFTER_ROTATION': True,  # Option pour lister les tokens invalidés
+    "USER_ID_FIELD": "id",  # S'assurer que Django comprend que l'ID est un UUID
+    "USER_ID_CLAIM": "user_id",  # JWT inclut l'UUID correct
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -81,6 +99,9 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+
+AUTH_USER_MODEL = 'softdeskApp.User'
 
 
 # Password validation

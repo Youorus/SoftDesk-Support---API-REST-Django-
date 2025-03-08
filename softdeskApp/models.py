@@ -27,6 +27,7 @@ class User(AbstractUser):
             raise ValueError("L'utilisateur doit avoir plus de 15 ans pour consentir à la collecte des données.")
         super().save(*args, **kwargs)
 
+
 # 2. PROJECT MODEL
 class Project(models.Model):
     BACKEND = 'backend'

@@ -39,11 +39,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['id', 'name', 'description', 'created_at', 'author']  # Remplace par tes champs réels
 
-# Serializer pour le modèle Contributor
-class ContributorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Contributor
-        fields = ['id', 'user', 'project', 'role']  # Remplace par tes champs réels
+
 
 # Serializer pour le modèle Issue
 class IssueSerializer(serializers.ModelSerializer):
