@@ -46,52 +46,66 @@ class TokenRefreshView(APIView):
         # Rafraîchissement standard via la vue de simplejwt
         return Response({'detail': 'Refresh token received successfully'})
 
+class UserViewSet(viewsets.ModelViewSet):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-class CreateUserView(generics.CreateAPIView):
-    permission_classes = [AllowAny]  # Autorise tout le monde à créer un compte
-    serializer_class = UserSerializer  # Spécifie le sérialiseur pour cette vue
+    def get_queryset(self):
+        """
+        - Un utilisateur ne peut voir que son propre profil
+        - Un admin peut voir tous les utilisateurs
+        """
+        user = self.request.user
+        if user.is_staff:
+            return User.objects.all()  # Admins voient tout
+        return User.objects.filter(id=user.id)  # Un utilisateur voit uniquement lui-même
 
-    def perform_create(self, serializer):
-        # L'utilisateur sera créé par le sérialiseur automatiquement
-        user = serializer.save()
-        return Response({"message": "Utilisateur créé avec succès", "username": user.username})
-
-
-class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Contributor.objects.all()
-    serializer_class = ContributorSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        # Récupère l'ID du projet à partir de l'URL (project_pk est le paramètre dans l'URL)
-        project_id = self.kwargs.get('project_pk')  # Assure-toi que l'URL utilise ce paramètre
-        if project_id:
-            try:
-                project = Project.objects.get(id=project_id)
-                context['project'] = project  # Ajoute le projet au contexte
-            except Project.DoesNotExist:
-                raise ValidationError("Le projet spécifié n'existe pas.")
-        return context
-
-    def create(self, request, *args, **kwargs):
-        project = self.get_serializer_context().get('project')
-        user = request.data.get('user')
-
-        # Vérifier si cet utilisateur est déjà un contributeur du projet
-        if Contributor.objects.filter(user=user, project=project).exists():
-            return Response(
-                {"detail": "Cet utilisateur est déjà un contributeur pour ce projet."}
-            )
-
-        # Si ce n'est pas le cas, procéder à la création du contributeur
-        return super().create(request, *args, **kwargs)
-
+    def perform_update(self, serializer):
+        """
+        Seul un utilisateur peut modifier son propre profil.
+        """
+        user = self.get_object()
+        if user != self.request.user and not self.request.user.is_staff:
+            raise serializers.ValidationError("Vous ne pouvez modifier que votre propre profil.")
+        serializer.save()
 
     def perform_destroy(self, instance):
-        """ Supprimer le projet et retourner un message """
+        """
+        Seul un utilisateur peut supprimer son propre compte (ou un admin).
+        """
+        if instance != self.request.user and not self.request.user.is_staff:
+            raise serializers.ValidationError("Vous ne pouvez supprimer que votre propre compte.")
         instance.delete()
-        return Response({"detail": "Project successfully deleted."})
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjectSerializer
+    permission_classes = [IsAuthenticated]  # Seuls les utilisateurs connectés ont accès
+
+    def get_queryset(self):
+        """
+        L'utilisateur ne peut voir que :
+        - Les projets qu'il a créés
+        - Les projets auxquels il est contributeur
+        """
+        user = self.request.user
+        return Project.objects.filter(contributors__user=user) | Project.objects.filter(author=user)
+
+    def perform_update(self, serializer):
+        """
+        Seul l'auteur d'un projet peut le modifier.
+        """
+        project = self.get_object()
+        if project.author != self.request.user:
+            raise serializers.ValidationError("Vous ne pouvez modifier que vos propres projets.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Seul l'auteur peut supprimer un projet.
+        """
+        if instance.author != self.request.user:
+            raise serializers.ValidationError("Vous ne pouvez supprimer que vos propres projets.")
+        instance.delete()
 
 
 class UserViewSet(viewsets.ModelViewSet):

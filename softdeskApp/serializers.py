@@ -5,34 +5,44 @@ from .models import Project, Contributor, Issue, Comment, User
 
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'age', 'can_be_contacted', 'can_data_be_shared', 'created_at']
-
-    def validate_username(self, value):
-        if len(value) < 3:
-            raise serializers.ValidationError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
-        return value
+        fields = ['id', 'username', 'email', 'password', 'age', 'can_be_contacted', 'can_data_be_shared', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
     def validate_age(self, value):
+        """ Vérifier que l'utilisateur a au moins 15 ans. """
         if value < 15:
-            raise serializers.ValidationError("L'utilisateur doit avoir plus de 15 ans pour consentir à la collecte des données.")
-        return value
-
-    def validate_password(self, value):
-        if len(value) < 8:
-            raise serializers.ValidationError("Le mot de passe doit contenir au moins 8 caractères.")
+            raise serializers.ValidationError("Vous devez avoir au moins 15 ans pour vous inscrire.")
         return value
 
     def create(self, validated_data):
-        # Hash the password before saving the user
-        password = validated_data.pop('password')
-        user = User.objects.create_user(**validated_data)
-        user.set_password(password)  # Set password hash
-        user.save()
+        """
+        Crée un nouvel utilisateur avec un mot de passe hashé.
+        """
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data.get('email', ''),
+            password=validated_data['password'],
+            age=validated_data['age'],
+            can_be_contacted=validated_data.get('can_be_contacted', False),
+            can_data_be_shared=validated_data.get('can_data_be_shared', False)
+        )
         return user
+
+    def update(self, instance, validated_data):
+        """
+        Mise à jour des informations de l'utilisateur.
+        """
+        for attr, value in validated_data.items():
+            if attr == 'password':
+                instance.set_password(value)  # Hachage du mot de passe
+            else:
+                setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 class ProjectSerializer(serializers.ModelSerializer):
