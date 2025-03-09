@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from .models import Project, Contributor, Issue, Comment, User
 
 
@@ -66,27 +68,55 @@ class ProjectSerializer(serializers.ModelSerializer):
         return value
 
 class ContributorSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
-
     class Meta:
         model = Contributor
-        fields = ['id', 'user', 'project', 'role']
-        read_only_fields = ['id']
+        fields = ['user', 'project', 'role']
+
+    def validate_project(self, value):
+        print(f"Validation du projet : {value}")
+        if not Project.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("Le projet spécifié n'existe pas.")
+        return value
 
     def validate_user(self, value):
-        """ Vérifie qu'un utilisateur ne peut pas être contributeur deux fois pour le même projet. """
-        project = self.initial_data.get('project')
-        if Contributor.objects.filter(user=value, project=project).exists():
-            raise serializers.ValidationError("Cet utilisateur est déjà contributeur de ce projet.")
+        print(f"Validation de l'utilisateur : {value}")
+        if not User.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("L'utilisateur spécifié n'existe pas.")
         return value
+
+    def validate(self, data):
+        print(f"Validation générale : {data}")
+        if Contributor.objects.filter(user=data['user'], project=data['project']).exists():
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"L'utilisateur {data['user'].username} est déjà contributeur sur ce projet."]}
+            )
+        return data
+
+
 
 
 # Serializer pour le modèle Issue
 class IssueSerializer(serializers.ModelSerializer):
+    # Sérialisation de l'assignee pour obtenir des informations sur l'utilisateur
+    assignee_username = serializers.CharField(source='assignee.username', read_only=True)
+    project_name = serializers.CharField(source='project.name', read_only=True)
+
     class Meta:
         model = Issue
-        fields = ['id', 'title', 'description', 'status', 'created_at', 'updated_at', 'assigned_to', 'project']  # Remplace par tes champs réels
+        fields = ['id', 'title', 'description', 'priority', 'tag', 'status', 'assignee', 'assignee_username', 'project',
+                  'project_name', 'created_at']
+
+    def validate_assignee(self, value):
+        """
+        Valider si l'utilisateur assigné à l'issue est bien un contributeur du projet.
+        """
+        project = self.initial_data.get('project')
+        if project:
+            # Vérifier si l'utilisateur est un contributeur du projet
+            if not Contributor.objects.filter(user=value, project=project).exists():
+                raise serializers.ValidationError("L'utilisateur assigné n'est pas un contributeur de ce projet.")
+        return value
+
 
 # Serializer pour le modèle Comment
 class CommentSerializer(serializers.ModelSerializer):

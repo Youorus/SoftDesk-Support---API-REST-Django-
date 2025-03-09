@@ -1,10 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ProjectViewSet, UserViewSet, CustomTokenObtainPairView, TokenRefreshView, CreateUserView
+from .views import ProjectViewSet, UserViewSet, CustomTokenObtainPairView, TokenRefreshView, CreateUserView, \
+    ContributorViewSet, IssueViewSet
 
 router = DefaultRouter()
 router.register(r'projects', ProjectViewSet, basename='project')  # Route pour les projets
 router.register(r'users', UserViewSet, basename='user')  # Route pour les utilisateurs
+router.register(r'projects/(?P<project_id>\d+)/contributors', ContributorViewSet, basename='project-specific-contributor')
+router.register(r'issues', IssueViewSet, basename='issue')  # Route pour les issues
+
+
+
 
 urlpatterns = [
     # Authentification : obtenir un access token et un refresh token

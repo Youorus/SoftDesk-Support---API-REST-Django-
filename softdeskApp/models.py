@@ -1,5 +1,6 @@
 import uuid
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 
 # 1. USER MODEL (AUTHENTIFICATION)
@@ -40,35 +41,53 @@ class Project(models.Model):
         (ANDROID, 'Android'),
     ]
 
-    id = models.AutoField(primary_key=True)  # AutoField pour générer un id automatiquement
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     type = models.CharField(max_length=10, choices=PROJECT_TYPES)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_projects")
-    contributors = models.ManyToManyField(User, through='Contributor', related_name='projects')  # relier via 'Contributor'
+    contributor = models.ManyToManyField(User, through='Contributor', related_name='projects')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        """
+        Sauvegarde le projet et ajoute automatiquement l'auteur comme contributeur.
+        """
+        is_new = self._state.adding  # Vérifie si c'est un nouveau projet
+
+        with transaction.atomic():  # Empêche les incohérences en cas d'erreur
+            super().save(*args, **kwargs)  # Sauvegarde le projet normalement
+
+            if is_new:  # Seulement lors de la création du projet
+                Contributor.objects.create(user=self.author, project=self, role=Contributor.AUTHOR)
+
 # 3. CONTRIBUTOR MODEL
 class Contributor(models.Model):
     CONTRIBUTOR = 'contributor'
-    AUTHOR = 'author'  # Ajouter le rôle 'AUTHOR'
-    ROLE_CHOICES = [(CONTRIBUTOR, 'Contributor'), (AUTHOR, 'Author')]  # Définir les rôles possibles
+    AUTHOR = 'author'
+
+    ROLE_CHOICES = [
+        (CONTRIBUTOR, 'Contributor'),
+        (AUTHOR, 'Author')
+    ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="contributors_set")  # Change le related_name ici
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR)  # 'CONTRIBUTOR' par défaut
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name="contributors")
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR)
 
     class Meta:
-        unique_together = ('user', 'project')
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'project'], name='unique_contributor')
+        ]
 
-    def save(self, *args, **kwargs):
-        # Si l'utilisateur n'est pas l'auteur du projet, forcer le rôle à 'CONTRIBUTOR' par défaut
-        if self.user != self.project.author and not self.role:
-            self.role = self.CONTRIBUTOR
-        super().save(*args, **kwargs)
+    def clean(self):
+        # Validation pour s'assurer qu'un contributeur ne soit pas déjà associé à ce projet
+        if Contributor.objects.filter(user=self.user, project=self.project).exists():
+            raise ValidationError(f"L'utilisateur {self.user.username} est déjà contributeur sur ce projet.")
+        super().clean()
+
 
 
 
@@ -89,7 +108,6 @@ class Issue(models.Model):
     FINISHED = 'Finished'
     STATUS_CHOICES = [(TODO, 'To Do'), (IN_PROGRESS, 'In Progress'), (FINISHED, 'Finished')]
 
-    id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default=LOW)
@@ -105,7 +123,6 @@ class Issue(models.Model):
 
 # 5. COMMENT MODEL
 class Comment(models.Model):
-    id = models.AutoField(primary_key=True)
     content = models.TextField()
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -52,7 +52,7 @@ REST_FRAMEWORK = {
 
 # Pour définir la durée de validité des tokens
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Durée de validité du token d'accès
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Durée de validité du token d'accès
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Durée de validité du refresh token
     'ROTATE_REFRESH_TOKENS': True,  # Pas de rotation des refresh tokens
     'BLACKLIST_AFTER_ROTATION': True,  # Option pour lister les tokens invalidés
@@ -131,6 +131,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+
+APPEND_SLASH = False
+
 
 TIME_ZONE = 'UTC'
 
