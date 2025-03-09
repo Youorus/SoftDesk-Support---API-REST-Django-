@@ -14,7 +14,6 @@ router.register(r'issues', IssueViewSet, basename='issue')
 router.register(r'contributors', ContributorViewSet, basename='contributor')
 
 
-
 urlpatterns = [
     # Enregistrement des routes API pour les JWT
     path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),

@@ -12,39 +12,6 @@ from softdeskApp.models import Project, User, Contributor, Issue
 from softdeskApp.serializers import ProjectSerializer, UserSerializer, ContributorSerializer, IssueSerializer
 
 
-class CustomTokenObtainPairView(TokenObtainPairView):
-    permission_classes = [permissions.AllowAny]  # Autoriser tout le monde à se connecter
-
-    def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        password = request.data.get('password')
-
-        if not username or not password:
-            raise AuthenticationFailed("Le nom d'utilisateur et le mot de passe sont requis.")
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            raise AuthenticationFailed("L'utilisateur avec ce nom d'utilisateur n'existe pas.")
-
-        if not user.check_password(password):
-            raise AuthenticationFailed("Le mot de passe est incorrect.")
-
-        # Si les informations sont correctes, on génère un access et refresh token
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-        })
-
-
-# Vue de rafraîchissement de token
-class TokenRefreshView(APIView):
-    permission_classes = [permissions.AllowAny]  # Autoriser tout le monde à actualiser un token
-
-    def post(self, request, *args, **kwargs):
-        # Rafraîchissement standard via la vue de simplejwt
-        return Response({'detail': 'Refresh token received successfully'})
 
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
