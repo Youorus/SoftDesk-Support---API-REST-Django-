@@ -101,35 +101,29 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class ContributorViewSet(viewsets.ModelViewSet):
+    """
+    API CRUD pour gérer les contributeurs d'un projet.
+    Seul l’auteur d’un projet peut ajouter ou retirer des contributeurs.
+    """
+    queryset = Contributor.objects.all()
     serializer_class = ContributorSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """
-        Récupère les contributeurs liés à un projet spécifique (par ID du projet).
+        Un utilisateur peut voir uniquement les contributeurs des projets où il est impliqué.
         """
-        project_id = self.kwargs.get('project_id')
-        if project_id:
-            return Contributor.objects.filter(project__id=project_id)
-        return Contributor.objects.all()
+        user = self.request.user
+        return Contributor.objects.filter(project__contributors__user=user)
 
     def perform_create(self, serializer):
         """
-        Crée un contributeur et l'associe à un projet.
+        Seul l’auteur d’un projet peut ajouter un contributeur.
         """
-        project = Project.objects.get(id=self.kwargs['project_id'])  # Récupère le projet par ID
-        serializer.save(project=project)
-
-    @action(detail=True, methods=['delete'], url_path='remove-contributor')
-    def remove_contributor(self, request, project_id=None, pk=None):
-        """
-        Supprime un contributeur d'un projet spécifique.
-        """
-        try:
-            contributor = Contributor.objects.get(project__id=project_id, id=pk)
-            contributor.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Contributor.DoesNotExist:
-            return Response({"detail": "Contributeur non trouvé."}, status=status.HTTP_404_NOT_FOUND)
+        project = serializer.validated_data['project']
+        if project.author != self.request.user:
+            raise serializers.ValidationError("Seul l'auteur du projet peut ajouter un contributeur.")
+        serializer.save()
 
 
 class IssueViewSet(viewsets.ModelViewSet):

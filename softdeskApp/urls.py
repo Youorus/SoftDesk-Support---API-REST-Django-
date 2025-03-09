@@ -6,8 +6,7 @@ from .views import ProjectViewSet, UserViewSet, CustomTokenObtainPairView, Token
 router = DefaultRouter()
 router.register(r'projects', ProjectViewSet, basename='project')  # Route pour les projets
 router.register(r'users', UserViewSet, basename='user')  # Route pour les utilisateurs
-router.register(r'projects/(?P<project_id>\d+)/contributors', ContributorViewSet, basename='project-specific-contributor')
-router.register(r'issues', IssueViewSet, basename='issue')  # Route pour les issues
+router.register(r'contributors', ContributorViewSet, basename='contributor')
 
 
 

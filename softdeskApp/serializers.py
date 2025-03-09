@@ -35,61 +35,43 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-# Serializer pour le modèle Project
 class ProjectSerializer(serializers.ModelSerializer):
-    author = serializers.ReadOnlyField(source='author.username')
-
-    # Validation du nom
-    name = serializers.CharField(
-        min_length=3,
-        max_length=100,
-        error_messages={
-            'min_length': "Le nom du projet doit contenir au moins 3 caractères.",
-            'max_length': "Le nom du projet ne doit pas dépasser 100 caractères."
-        }
-    )
-
-    # Validation du type avec une liste restreinte de choix
-    TYPE_CHOICES = ['Back-end', 'Front-end', 'iOS', 'Android']
-    type = serializers.ChoiceField(
-        choices=TYPE_CHOICES,
-        error_messages={'invalid_choice': "Le type doit être 'Back-end', 'Front-end', 'iOS' ou 'Android'."}
-    )
+    author = serializers.ReadOnlyField(source='author.id')  # L'auteur est défini automatiquement
 
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'type', 'author', 'created_at']
-        read_only_fields = ['id', 'author', 'created_at']
+        read_only_fields = ['id', 'author', 'created_at']  # Ces champs ne doivent pas être modifiables
 
-    # Validation personnalisée du nom pour éviter les noms vides ou avec juste des espaces
     def validate_name(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Le nom du projet ne peut pas être vide ou composé uniquement d'espaces.")
+        """ Empêcher les projets avec un nom trop court. """
+        if len(value) < 3:
+            raise serializers.ValidationError("Le nom du projet doit contenir au moins 3 caractères.")
         return value
 
+    def create(self, validated_data):
+        """
+        Lorsqu'un projet est créé, l'utilisateur devient automatiquement son auteur
+        et est ajouté comme contributeur.
+        """
+        user = self.context['request'].user
+        project = Project.objects.create(author=user, **validated_data)
+
+        # Ajouter l'auteur comme contributeur automatiquement
+        Contributor.objects.create(user=user, project=project, role="author")
+
+        return project
+
+# 3️⃣ CONTRIBUTOR SERIALIZER
 class ContributorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contributor
-        fields = ['user', 'project', 'role']
-
-    def validate_project(self, value):
-        print(f"Validation du projet : {value}")
-        if not Project.objects.filter(id=value.id).exists():
-            raise serializers.ValidationError("Le projet spécifié n'existe pas.")
-        return value
-
-    def validate_user(self, value):
-        print(f"Validation de l'utilisateur : {value}")
-        if not User.objects.filter(id=value.id).exists():
-            raise serializers.ValidationError("L'utilisateur spécifié n'existe pas.")
-        return value
+        fields = ['id', 'user', 'project', 'role']
 
     def validate(self, data):
-        print(f"Validation générale : {data}")
+        """ Vérifie que l'utilisateur n'est pas déjà contributeur de ce projet """
         if Contributor.objects.filter(user=data['user'], project=data['project']).exists():
-            raise serializers.ValidationError(
-                {"non_field_errors": [f"L'utilisateur {data['user'].username} est déjà contributeur sur ce projet."]}
-            )
+            raise serializers.ValidationError("Cet utilisateur est déjà contributeur de ce projet.")
         return data
 
 
