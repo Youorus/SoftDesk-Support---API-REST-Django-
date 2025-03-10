@@ -1,3 +1,4 @@
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -5,44 +6,55 @@ from .models import Project, Contributor, Issue, Comment, User
 
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    # Chiffrement du mot de passe lors de la création
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    username = serializers.CharField(max_length=150, required=True)
+    age = serializers.IntegerField(required=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'age', 'can_be_contacted', 'can_data_be_shared', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ('id', 'username', 'password', 'age', 'can_be_contacted', 'can_data_be_shared', 'created_at')
+        extra_kwargs = {
+            'can_be_contacted': {'required': False},
+            'can_data_be_shared': {'required': False},
+            'created_at': {'required': False},
+        }
+
+    def validate_username(self, value):
+        """
+        Valide que le username est unique.
+        """
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Le nom d'utilisateur est déjà pris.")
+        return value
+
+    def validate_password(self, value):
+        """
+        Valide que le mot de passe répond aux critères de sécurité.
+        """
+        try:
+            validate_password(value)
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+        return value
 
     def validate_age(self, value):
-        """ Vérifier que l'utilisateur a au moins 15 ans. """
+        """
+        Valide que l'âge de l'utilisateur ne soit pas inferieur  à 15 ans.
+        """
         if value < 15:
-            raise serializers.ValidationError("Vous devez avoir au moins 15 ans pour vous inscrire.")
+            raise serializers.ValidationError("L'âge ne peut pas être inferieur à 15 ans.")
         return value
 
     def create(self, validated_data):
         """
-        Crée un nouvel utilisateur avec un mot de passe hashé.
+        Crée un utilisateur et chiffre le mot de passe.
         """
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data.get('email', ''),
-            password=validated_data['password'],
-            age=validated_data['age'],
-            can_be_contacted=validated_data.get('can_be_contacted', False),
-            can_data_be_shared=validated_data.get('can_data_be_shared', False)
-        )
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)  # Chiffre le mot de passe
+        user.save()
         return user
-
-    def update(self, instance, validated_data):
-        """
-        Mise à jour des informations de l'utilisateur.
-        """
-        for attr, value in validated_data.items():
-            if attr == 'password':
-                instance.set_password(value)  # Hachage du mot de passe
-            else:
-                setattr(instance, attr, value)
-        instance.save()
-        return instance
 
 
 class ProjectSerializer(serializers.ModelSerializer):

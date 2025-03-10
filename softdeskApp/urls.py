@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt import views as jwt_views
 
 # Importation des ViewSets pour tes modèles
-from .views import UserViewSet, ProjectViewSet, IssueViewSet, ContributorViewSet
+from .views import UserViewSet, ProjectViewSet, IssueViewSet, ContributorViewSet, register
 
 router = DefaultRouter()
 
@@ -15,7 +15,8 @@ router.register(r'contributors', ContributorViewSet, basename='contributor')
 
 
 urlpatterns = [
+    path('register/', register, name='register'),
     # Enregistrement des routes API pour les JWT
-    path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
 ] + router.urls  # Inclure les routes du routeur pour les projets et utilisateurs

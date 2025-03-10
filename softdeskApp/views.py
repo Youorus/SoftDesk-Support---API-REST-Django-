@@ -1,48 +1,65 @@
 
-from rest_framework import viewsets, generics, permissions, status, serializers
-from rest_framework.decorators import action
-from rest_framework.exceptions import AuthenticationFailed, ValidationError
+from rest_framework import viewsets, serializers
+from rest_framework.decorators import api_view, permission_classes
+
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
-
 from softdeskApp.models import Project, User, Contributor, Issue
 from softdeskApp.serializers import ProjectSerializer, UserSerializer, ContributorSerializer, IssueSerializer
 
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]
 
-    def get_queryset(self):
-        """
-        - Un utilisateur ne peut voir que son propre profil
-        - Un admin peut voir tous les utilisateurs
-        """
-        user = self.request.user
-        if user.is_staff:
-            return User.objects.all()  # Admins voient tout
-        return User.objects.filter(id=user.id)  # Un utilisateur voit uniquement lui-même
 
-    def perform_update(self, serializer):
-        """
-        Seul un utilisateur peut modifier son propre profil.
-        """
-        user = self.get_object()
-        if user != self.request.user and not self.request.user.is_staff:
-            raise serializers.ValidationError("Vous ne pouvez modifier que votre propre profil.")
-        serializer.save()
+# def get_queryset(self):
+    #     """
+    #     - Un utilisateur ne peut voir que son propre profil
+    #     - Un admin peut voir tous les utilisateurs
+    #     """
+    #     user = self.request.user
+    #     if user.is_staff:
+    #         return User.objects.all()
+    #     return User.objects.filter(id=user.id)  # Un utilisateur voit uniquement lui-même
 
-    def perform_destroy(self, instance):
-        """
-        Seul un utilisateur peut supprimer son propre compte (ou un admin).
-        """
-        if instance != self.request.user and not self.request.user.is_staff:
-            raise serializers.ValidationError("Vous ne pouvez supprimer que votre propre compte.")
-        instance.delete()
+    # def perform_update(self, serializer):
+    #     """
+    #     Seul un utilisateur peut modifier son propre profil.
+    #     """
+    #     user = self.get_object()
+    #     if user != self.request.user and not self.request.user.is_staff:
+    #         raise serializers.ValidationError("Vous ne pouvez modifier que votre propre profil.")
+    #     serializer.save()
+
+    # def perform_destroy(self, instance):
+    #     """
+    #     Seul un utilisateur peut supprimer son propre compte .
+    #     """
+    #     if instance != self.request.user and not self.request.user.is_staff:
+    #         raise serializers.ValidationError("Vous ne pouvez supprimer que votre propre compte.")
+    #     instance.delete()
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])  # Permet à tout utilisateur, même non authentifié, d'enregistrer un nouvel utilisateur
+def register(request):
+    if request.method == 'POST':
+        # Utilisation du serializer pour valider les données reçues dans la requête
+        serializer = UserSerializer(data=request.data)
+
+        # Vérification de la validité des données
+        if serializer.is_valid():
+            # Si le serializer est valide, on crée un utilisateur
+            serializer.save()
+            # Réponse avec les données du nouvel utilisateur (ne contient pas le mot de passe)
+            return Response(serializer.data)
+        # Si les données ne sont pas valides, on renvoie les erreurs
+        return Response(serializer.errors)
+
+
 
 class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
