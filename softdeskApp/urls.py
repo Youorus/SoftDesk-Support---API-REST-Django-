@@ -5,7 +5,8 @@ from rest_framework_simplejwt import views as jwt_views
 # Importation des ViewSets pour tes modèles
 from .views import UserViewSet, ProjectViewSet, IssueViewSet, ContributorViewSet, register
 
-router = DefaultRouter()
+# Désactiver l'ajout automatique du slash final
+router = DefaultRouter(trailing_slash=False)
 
 # Enregistrement des ViewSets pour chaque modèle
 router.register(r'users', UserViewSet, basename='user')

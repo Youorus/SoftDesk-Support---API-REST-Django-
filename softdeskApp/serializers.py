@@ -6,26 +6,22 @@ from .models import Project, Contributor, Issue, Comment, User
 
 
 class UserSerializer(serializers.ModelSerializer):
-    # Chiffrement du mot de passe lors de la création
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    username = serializers.CharField(max_length=150, required=True)
-    age = serializers.IntegerField(required=True)
 
     class Meta:
         model = User
         fields = ('id', 'username', 'password', 'age', 'can_be_contacted', 'can_data_be_shared', 'created_at')
         extra_kwargs = {
-            'can_be_contacted': {'required': False},
-            'can_data_be_shared': {'required': False},
-            'created_at': {'required': False},
+            'password': {'write_only': True},  # Le mot de passe ne sera pas retourné
+            'created_at': {'read_only': True},  # Empêche la modification
+            'age': {'read_only': True},  # Empêche la modification de l'âge
         }
 
     def validate_username(self, value):
-        """
-        Valide que le username est unique.
-        """
+        """ Empêche la validation du username s'il n'a pas changé """
+        if self.instance and self.instance.username == value:
+            return value  # Retourne l'ancien username sans erreur
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Le nom d'utilisateur est déjà pris.")
+            raise serializers.ValidationError("Ce nom d'utilisateur est déjà pris.")
         return value
 
     def validate_password(self, value):
@@ -37,6 +33,13 @@ class UserSerializer(serializers.ModelSerializer):
         except Exception as e:
             raise serializers.ValidationError(str(e))
         return value
+
+    def update(self, instance, validated_data):
+        """ Empêche la validation des champs non modifiés """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
     def validate_age(self, value):
         """

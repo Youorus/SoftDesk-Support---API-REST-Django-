@@ -6,10 +6,10 @@ from django.db import models
 # 1. USER MODEL (AUTHENTIFICATION)
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID uniquement pour l'user
-    age = models.PositiveIntegerField()
+    age = models.PositiveIntegerField(editable=False)
     can_be_contacted = models.BooleanField(default=False)
     can_data_be_shared = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
 
     # Ajoute ces lignes pour éviter les conflits
     groups = models.ManyToManyField(

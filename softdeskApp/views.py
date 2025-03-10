@@ -1,6 +1,7 @@
 
 from rest_framework import viewsets, serializers
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -10,37 +11,33 @@ from softdeskApp.serializers import ProjectSerializer, UserSerializer, Contribut
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """
+    - Un utilisateur peut récupérer son propre profil (GET /api/users/{id}/).
+    - Un admin peut voir et gérer tous les utilisateurs.
+    - Un utilisateur peut mettre à jour ou supprimer uniquement son propre profil.
+    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # Tout le monde doit être connecté
 
+    def get_queryset(self):
+        """Un utilisateur voit uniquement son propre profil sauf s'il est admin."""
+        if self.request.user.is_staff:
+            return User.objects.all()
+        return User.objects.filter(id=self.request.user.id)
 
-# def get_queryset(self):
-    #     """
-    #     - Un utilisateur ne peut voir que son propre profil
-    #     - Un admin peut voir tous les utilisateurs
-    #     """
-    #     user = self.request.user
-    #     if user.is_staff:
-    #         return User.objects.all()
-    #     return User.objects.filter(id=user.id)  # Un utilisateur voit uniquement lui-même
+    def perform_update(self, serializer):
+        """Seul l'utilisateur concerné ou un admin peut modifier le profil."""
+        user = self.get_object()
+        if user != self.request.user and not self.request.user.is_staff:
+            raise PermissionDenied("Vous ne pouvez modifier que votre propre profil.")
+        serializer.save()
 
-    # def perform_update(self, serializer):
-    #     """
-    #     Seul un utilisateur peut modifier son propre profil.
-    #     """
-    #     user = self.get_object()
-    #     if user != self.request.user and not self.request.user.is_staff:
-    #         raise serializers.ValidationError("Vous ne pouvez modifier que votre propre profil.")
-    #     serializer.save()
-
-    # def perform_destroy(self, instance):
-    #     """
-    #     Seul un utilisateur peut supprimer son propre compte .
-    #     """
-    #     if instance != self.request.user and not self.request.user.is_staff:
-    #         raise serializers.ValidationError("Vous ne pouvez supprimer que votre propre compte.")
-    #     instance.delete()
+    def perform_destroy(self, instance):
+        """Seul l'utilisateur concerné ou un admin peut supprimer un compte."""
+        if instance != self.request.user and not self.request.user.is_staff:
+            raise PermissionDenied("Vous ne pouvez supprimer que votre propre compte.")
+        instance.delete()
 
 
 @api_view(['POST'])
