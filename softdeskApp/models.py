@@ -1,12 +1,13 @@
 import uuid
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
+
 
 # 1. USER MODEL (AUTHENTIFICATION)
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID uniquement pour l'user
-    age = models.PositiveIntegerField(editable=False)
+    age = models.PositiveIntegerField()
     can_be_contacted = models.BooleanField(default=False)
     can_data_be_shared = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
@@ -41,12 +42,16 @@ class Project(models.Model):
         (ANDROID, 'Android'),
     ]
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID pour éviter les IDs prédictibles
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     type = models.CharField(max_length=10, choices=PROJECT_TYPES)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_projects")
-    contributor = models.ManyToManyField(User, through='Contributor', related_name='projects')
+    contributors = models.ManyToManyField(User, through='Contributor', related_name='projects')
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']  # Tri par date de création décroissante
 
     def __str__(self):
         return self.name
@@ -74,7 +79,7 @@ class Contributor(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name="contributors")
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name="contributor_set")  # Modifié ici
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR)
 
     class Meta:
@@ -87,7 +92,6 @@ class Contributor(models.Model):
         if Contributor.objects.filter(user=self.user, project=self.project).exists():
             raise ValidationError(f"L'utilisateur {self.user.username} est déjà contributeur sur ce projet.")
         super().clean()
-
 
 
 

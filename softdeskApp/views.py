@@ -1,11 +1,12 @@
 
 from rest_framework import viewsets, serializers
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.exceptions import PermissionDenied
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from softdeskApp.models import Project, User, Contributor, Issue
+from softdeskApp.permissions import IsAuthorOrReadOnly
 from softdeskApp.serializers import ProjectSerializer, UserSerializer, ContributorSerializer, IssueSerializer
 
 
@@ -45,6 +46,7 @@ class UserViewSet(viewsets.ModelViewSet):
 def register(request):
     if request.method == 'POST':
         # Utilisation du serializer pour valider les données reçues dans la requête
+        print(request.data)
         serializer = UserSerializer(data=request.data)
 
         # Vérification de la validité des données
@@ -57,42 +59,52 @@ def register(request):
         return Response(serializer.errors)
 
 
-
 class ProjectViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les projets.
+    L'auteur peut modifier ou supprimer le projet, les autres utilisateurs ne peuvent que lire.
+    """
+    queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticated]  # Seuls les utilisateurs connectés ont accès
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
 
-    def get_queryset(self):
+    def perform_create(self, serializer):
         """
-        L'utilisateur ne peut voir que :
-        - Les projets qu'il a créés
-        - Les projets auxquels il est contributeur
+        Lors de la création d'un projet, on définit l'auteur automatiquement
+        et on le lie en tant que contributeur.
         """
         user = self.request.user
-        return Project.objects.filter(contributors__user=user) | Project.objects.filter(author=user)
+        serializer.save(author=user)
+        # Ajout de l'auteur comme contributeur
+        project = serializer.instance
+        Contributor.objects.create(user=user, project=project, role=Contributor.AUTHOR)
 
-    def perform_update(self, serializer):
+    @action(detail=True, methods=['get'])
+    def contributors(self, request, pk=None):
         """
-        Seul l'auteur d'un projet peut le modifier.
+        Récupère tous les contributeurs d'un projet spécifique.
         """
         project = self.get_object()
-        if project.author != self.request.user:
-            raise serializers.ValidationError("Vous ne pouvez modifier que vos propres projets.")
-        serializer.save()
+        contributors = project.contributor_set.all()
+        # Utilisation d'un serializer pour afficher les contributeurs
+        serializer = ContributorSerializer(contributors, many=True)
+        return Response(serializer.data)
 
-    def perform_destroy(self, instance):
+    def update(self, request, *args, **kwargs):
         """
-        Seul l'auteur peut supprimer un projet.
+        La logique de mise à jour peut rester simple car la permission gère déjà
+        la vérification de l'auteur.
         """
-        if instance.author != self.request.user:
-            raise serializers.ValidationError("Vous ne pouvez supprimer que vos propres projets.")
-        instance.delete()
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        La logique de suppression peut rester simple car la permission gère déjà
+        la vérification de l'auteur.
+        """
+        return super().destroy(request, *args, **kwargs)
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]  # Seul un utilisateur authentifié peut accéder aux utilisateurs
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
 
 
 class ContributorViewSet(viewsets.ModelViewSet):
