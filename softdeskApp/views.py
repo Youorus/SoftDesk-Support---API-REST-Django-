@@ -6,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied, NotFound, ValidationErro
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from softdeskApp.models import Project, User, Contributor, Issue, Comment
-from softdeskApp.permissions import IsAuthorOrReadOnly
+from softdeskApp.permissions import IsAuthorOrContributorOrReadOnly
 from softdeskApp.serializers import ProjectSerializer, UserSerializer, ContributorSerializer, IssueSerializer, \
     CommentSerializer
 
@@ -66,7 +66,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+    permission_classes = [IsAuthenticated, IsAuthorOrContributorOrReadOnly]
 
     def perform_create(self, serializer):
         """
@@ -123,7 +123,7 @@ class ContributorViewSet(viewsets.ModelViewSet):
     """
     queryset = Contributor.objects.all()
     serializer_class = ContributorSerializer
-    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+    permission_classes = [IsAuthenticated, IsAuthorOrContributorOrReadOnly]
 
     def get_queryset(self):
         """
@@ -145,7 +145,7 @@ class ContributorViewSet(viewsets.ModelViewSet):
 class IssueViewSet(viewsets.ModelViewSet):
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+    permission_classes = [IsAuthenticated, IsAuthorOrContributorOrReadOnly]
 
     def get_queryset(self):
         """
@@ -182,7 +182,7 @@ class IssueViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+    permission_classes = [IsAuthenticated, IsAuthorOrContributorOrReadOnly]
 
     def get_queryset(self):
         """
