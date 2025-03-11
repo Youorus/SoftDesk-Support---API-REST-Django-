@@ -143,28 +143,50 @@ class ContributorViewSet(viewsets.ModelViewSet):
 
 
 class IssueViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les issues.
+    - Seuls les contributeurs du projet peuvent créer, modifier ou supprimer des issues.
+    - Les autres utilisateurs peuvent uniquement lire les issues.
+    """
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated]  # Limiter l'accès aux utilisateurs authentifiés
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """
-        Personnaliser la méthode pour filtrer les issues en fonction de l'utilisateur authentifié.
-        Un utilisateur peut voir uniquement ses issues ou celles de ses projets.
+        Filtre les issues en fonction du projet spécifié dans l'URL.
         """
-        user = self.request.user
-        # Filtrer les issues assignées à l'utilisateur ou issues des projets auxquels l'utilisateur appartient
-        return Issue.objects.filter(
-            assignee=user
-        ) | Issue.objects.filter(project__contributors__user=user)
+        project_id = self.kwargs.get('project_id')
+        return Issue.objects.filter(project_id=project_id)
 
     def perform_create(self, serializer):
         """
-        Personnaliser la création de l'issue pour lier correctement les données du projet et de l'utilisateur.
+        Crée une issue et définit automatiquement l'auteur.
+        - Vérifie que l'assignee est un contributeur du projet.
         """
-        project = self.request.data.get('project')
-        if project:
-            # Associer l'issue au projet et à l'utilisateur actuel (si nécessaire)
-            serializer.save(author=self.request.user, project_id=project)
-        else:
-            raise serializers.ValidationError("Le projet est requis pour créer une issue.")
+        project_id = self.kwargs.get('project_id')
+        project = Project.objects.get(id=project_id)
+        user = self.request.user
+
+        # Vérifier que l'assignee est un contributeur du projet
+        assignee = serializer.validated_data.get('assignee')
+        if assignee and not Contributor.objects.filter(user=assignee, project=project).exists():
+            raise serializers.ValidationError("L'assignee doit être un contributeur du projet.")
+
+        # Définir l'auteur et le projet
+        serializer.save(author=user, project=project)
+
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
+        """
+        Met à jour le statut d'une issue.
+        """
+        issue = self.get_object()
+        new_status = request.data.get('status')
+
+        if new_status not in dict(Issue.STATUS_CHOICES).keys():
+            return Response({"detail": "Statut invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        issue.status = new_status
+        issue.save()
+        return Response({"detail": "Statut mis à jour avec succès."}, status=status.HTTP_200_OK)

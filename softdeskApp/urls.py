@@ -12,7 +12,6 @@ router = DefaultRouter(trailing_slash=False)
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'issues', IssueViewSet, basename='issue')
-router.register(r'contributors', ContributorViewSet, basename='contributor')
 
 
 urlpatterns = [

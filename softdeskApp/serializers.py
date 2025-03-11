@@ -136,32 +136,36 @@ class ProjectSerializer(serializers.ModelSerializer):
         return project
 
 
-
-
-
-
-
-
-# Serializer pour le modèle Issue
 class IssueSerializer(serializers.ModelSerializer):
-    # Sérialisation de l'assignee pour obtenir des informations sur l'utilisateur
     assignee_username = serializers.CharField(source='assignee.username', read_only=True)
     project_name = serializers.CharField(source='project.name', read_only=True)
+    author_username = serializers.CharField(source='author.username', read_only=True)
 
     class Meta:
         model = Issue
-        fields = ['id', 'title', 'description', 'priority', 'tag', 'status', 'assignee', 'assignee_username', 'project',
-                  'project_name', 'created_at']
+        fields = [
+            'id', 'title', 'description', 'priority', 'tag', 'status',
+            'assignee', 'assignee_username', 'project', 'project_name',
+            'author', 'author_username', 'created_at'
+        ]
+        read_only_fields = ['author', 'created_at', 'assignee_username', 'project_name', 'author_username']
 
     def validate_assignee(self, value):
         """
-        Valider si l'utilisateur assigné à l'issue est bien un contributeur du projet.
+        Valide que l'assignee est un contributeur du projet.
         """
-        project = self.initial_data.get('project')
-        if project:
-            # Vérifier si l'utilisateur est un contributeur du projet
-            if not Contributor.objects.filter(user=value, project=project).exists():
-                raise serializers.ValidationError("L'utilisateur assigné n'est pas un contributeur de ce projet.")
+        if value:
+            project = self.context.get('project')
+            if project and not Contributor.objects.filter(user=value, project=project).exists():
+                raise serializers.ValidationError("L'assignee doit être un contributeur du projet.")
+        return value
+
+    def validate_project(self, value):
+        """
+        Valide que le projet existe.
+        """
+        if not Project.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("Le projet spécifié n'existe pas.")
         return value
 
 
