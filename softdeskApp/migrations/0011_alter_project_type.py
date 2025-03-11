@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('softdeskApp', '0010_alter_user_age'),
+        ("softdeskApp", "0010_alter_user_age"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='project',
-            name='type',
+            model_name="project",
+            name="type",
             field=models.CharField(max_length=10),
         ),
     ]

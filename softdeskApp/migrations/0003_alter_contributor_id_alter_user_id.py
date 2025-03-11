@@ -7,18 +7,22 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('softdeskApp', '0002_alter_user_id'),
+        ("softdeskApp", "0002_alter_user_id"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='contributor',
-            name='id',
-            field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
+            model_name="contributor",
+            name="id",
+            field=models.BigAutoField(
+                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+            ),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='id',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+            model_name="user",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+            ),
         ),
     ]

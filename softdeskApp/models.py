@@ -6,114 +6,193 @@ from django.db import models, transaction
 
 # 1. USER MODEL (AUTHENTIFICATION)
 class User(AbstractUser):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID uniquement pour l'user
-    age = models.PositiveIntegerField()
-    can_be_contacted = models.BooleanField(default=False)
-    can_data_be_shared = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    """
+    Modèle personnalisé pour les utilisateurs.
+    - Utilise un UUID comme clé primaire.
+    - Inclut des champs supplémentaires pour l'âge, les préférences de contact et le partage de données.
+    """
 
-    # Ajoute ces lignes pour éviter les conflits
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False
+    )  # UUID comme clé primaire
+    age = models.PositiveIntegerField()  # Âge de l'utilisateur
+    can_be_contacted = models.BooleanField(
+        default=False
+    )  # L'utilisateur peut être contacté
+    can_data_be_shared = models.BooleanField(
+        default=False
+    )  # Les données de l'utilisateur peuvent être partagées
+    created_at = models.DateTimeField(
+        auto_now_add=True, editable=False
+    )  # Date de création
+
+    # Éviter les conflits avec les groupes et permissions par défaut
     groups = models.ManyToManyField(
         "auth.Group",
-        related_name="softdesk_users",  # Change ici pour éviter le conflit
-        blank=True
+        related_name="softdesk_users",  # Nom personnalisé pour éviter les conflits
+        blank=True,
     )
     user_permissions = models.ManyToManyField(
         "auth.Permission",
-        related_name="softdesk_users_permissions",  # Change ici aussi
-        blank=True
+        related_name="softdesk_users_permissions",  # Nom personnalisé pour éviter les conflits
+        blank=True,
     )
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+    def __str__(self):
+        """
+        Représentation en chaîne de caractères de l'utilisateur.
+        """
+        return self.username
 
 
 # 2. PROJECT MODEL
 class Project(models.Model):
-    BACKEND = 'backend'
-    FRONTEND = 'frontend'
-    IOS = 'ios'
-    ANDROID = 'android'
+    """
+    Modèle pour les projets.
+    - Un projet a un nom, une description, un type et un auteur.
+    - Les contributeurs sont gérés via le modèle Contributor.
+    """
+
+    BACKEND = "backend"
+    FRONTEND = "frontend"
+    IOS = "ios"
+    ANDROID = "android"
 
     PROJECT_TYPES = [
-        (BACKEND, 'Back-end'),
-        (FRONTEND, 'Front-end'),
-        (IOS, 'iOS'),
-        (ANDROID, 'Android'),
+        (BACKEND, "Back-end"),
+        (FRONTEND, "Front-end"),
+        (IOS, "iOS"),
+        (ANDROID, "Android"),
     ]
 
-    name = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
-    type = models.CharField(max_length=10)
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_projects")
-    contributors = models.ManyToManyField(User, through='Contributor', related_name='projects')
-    created_at = models.DateTimeField(auto_now_add=True)
+    name = models.CharField(max_length=255)  # Nom du projet
+    description = models.TextField(null=True, blank=True)  # Description du projet
+    type = models.CharField(max_length=10, choices=PROJECT_TYPES)  # Type de projet
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="created_projects"
+    )  # Auteur du projet
+    contributors = models.ManyToManyField(
+        User, through="Contributor", related_name="projects"
+    )  # Contributeurs du projet
+    created_at = models.DateTimeField(auto_now_add=True)  # Date de création
 
     class Meta:
-        ordering = ['-created_at']  # Tri par date de création décroissante
+        ordering = ["-created_at"]  # Tri par date de création décroissante
 
     def __str__(self):
+        """
+        Représentation en chaîne de caractères du projet.
+        """
         return self.name
 
 
 # 3. CONTRIBUTOR MODEL
 class Contributor(models.Model):
-    CONTRIBUTOR = 'contributor'
-    AUTHOR = 'author'
+    """
+    Modèle pour les contributeurs d'un projet.
+    - Un contributeur est un utilisateur associé à un projet avec un rôle spécifique.
+    """
 
-    ROLE_CHOICES = [
-        (CONTRIBUTOR, 'Contributor'),
-        (AUTHOR, 'Author')
-    ]
+    CONTRIBUTOR = "contributor"
+    AUTHOR = "author"
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="contributor_set")  # Modifié ici
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR)
+    ROLE_CHOICES = [(CONTRIBUTOR, "Contributor"), (AUTHOR, "Author")]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # Utilisateur contributeur
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="contributor_set"
+    )  # Projet associé
+    role = models.CharField(
+        max_length=20, choices=ROLE_CHOICES, default=CONTRIBUTOR
+    )  # Rôle du contributeur
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['user', 'project'], name='unique_contributor')
+            models.UniqueConstraint(
+                fields=["user", "project"], name="unique_contributor"
+            )  # Contrainte d'unicité
         ]
 
-
+    def __str__(self):
+        """
+        Représentation en chaîne de caractères du contributeur.
+        """
+        return f"{self.user.username} - {self.project.name} ({self.role})"
 
 
 # 4. ISSUE MODEL
 class Issue(models.Model):
-    LOW = 'LOW'
-    MEDIUM = 'MEDIUM'
-    HIGH = 'HIGH'
-    PRIORITY_CHOICES = [(LOW, 'Low'), (MEDIUM, 'Medium'), (HIGH, 'High')]
+    """
+    Modèle pour les issues (problèmes) d'un projet.
+    - Une issue a un titre, une description, une priorité, un tag, un statut, un assigné et un auteur.
+    """
 
-    BUG = 'BUG'
-    FEATURE = 'FEATURE'
-    TASK = 'TASK'
-    TAG_CHOICES = [(BUG, 'Bug'), (FEATURE, 'Feature'), (TASK, 'Task')]
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    PRIORITY_CHOICES = [(LOW, "Low"), (MEDIUM, "Medium"), (HIGH, "High")]
 
-    TODO = 'To Do'
-    IN_PROGRESS = 'In Progress'
-    FINISHED = 'Finished'
-    STATUS_CHOICES = [(TODO, 'To Do'), (IN_PROGRESS, 'In Progress'), (FINISHED, 'Finished')]
+    BUG = "BUG"
+    FEATURE = "FEATURE"
+    TASK = "TASK"
+    TAG_CHOICES = [(BUG, "Bug"), (FEATURE, "Feature"), (TASK, "Task")]
 
-    title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default=LOW)
-    tag = models.CharField(max_length=10, choices=TAG_CHOICES, default=TASK)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=TODO)
-    assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="assigned_issues")
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="issues")
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    TODO = "To Do"
+    IN_PROGRESS = "In Progress"
+    FINISHED = "Finished"
+    STATUS_CHOICES = [
+        (TODO, "To Do"),
+        (IN_PROGRESS, "In Progress"),
+        (FINISHED, "Finished"),
+    ]
+
+    title = models.CharField(max_length=255)  # Titre de l'issue
+    description = models.TextField(null=True, blank=True)  # Description de l'issue
+    priority = models.CharField(
+        max_length=10, choices=PRIORITY_CHOICES, default=LOW
+    )  # Priorité de l'issue
+    tag = models.CharField(
+        max_length=10, choices=TAG_CHOICES, default=TASK
+    )  # Tag de l'issue
+    status = models.CharField(
+        max_length=15, choices=STATUS_CHOICES, default=TODO
+    )  # Statut de l'issue
+    assignee = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_issues",
+    )  # Assigné de l'issue
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="issues"
+    )  # Projet associé
+    author = models.ForeignKey(User, on_delete=models.CASCADE)  # Auteur de l'issue
+    created_at = models.DateTimeField(auto_now_add=True)  # Date de création
 
     def __str__(self):
+        """
+        Représentation en chaîne de caractères de l'issue.
+        """
         return self.title
+
 
 # 5. COMMENT MODEL
 class Comment(models.Model):
-    content = models.TextField()
-    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="comments")
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    """
+    Modèle pour les commentaires sur une issue.
+    - Un commentaire a un contenu, une issue associée et un auteur.
+    """
+
+    content = models.TextField()  # Contenu du commentaire
+    issue = models.ForeignKey(
+        Issue, on_delete=models.CASCADE, related_name="comments"
+    )  # Issue associée
+    author = models.ForeignKey(User, on_delete=models.CASCADE)  # Auteur du commentaire
+    created_at = models.DateTimeField(auto_now_add=True)  # Date de création
 
     def __str__(self):
+        """
+        Représentation en chaîne de caractères du commentaire.
+        """
         return f"Comment by {self.author} on {self.issue}"

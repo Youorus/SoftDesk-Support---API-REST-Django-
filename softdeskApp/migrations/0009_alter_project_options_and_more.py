@@ -8,27 +8,33 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('softdeskApp', '0008_alter_user_age'),
+        ("softdeskApp", "0008_alter_user_age"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='project',
-            options={'ordering': ['-created_at']},
+            name="project",
+            options={"ordering": ["-created_at"]},
         ),
         migrations.RenameField(
-            model_name='project',
-            old_name='contributor',
-            new_name='contributors',
+            model_name="project",
+            old_name="contributor",
+            new_name="contributors",
         ),
         migrations.AlterField(
-            model_name='contributor',
-            name='project',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='contributor_set', to='softdeskApp.project'),
+            model_name="contributor",
+            name="project",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="contributor_set",
+                to="softdeskApp.project",
+            ),
         ),
         migrations.AlterField(
-            model_name='project',
-            name='id',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+            model_name="project",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+            ),
         ),
     ]

@@ -8,18 +8,26 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('softdeskApp', '0004_alter_contributor_role'),
+        ("softdeskApp", "0004_alter_contributor_role"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='project',
-            name='contributors',
-            field=models.ManyToManyField(related_name='projects', through='softdeskApp.Contributor', to=settings.AUTH_USER_MODEL),
+            model_name="project",
+            name="contributors",
+            field=models.ManyToManyField(
+                related_name="projects",
+                through="softdeskApp.Contributor",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterField(
-            model_name='contributor',
-            name='project',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='contributors_set', to='softdeskApp.project'),
+            model_name="contributor",
+            name="project",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="contributors_set",
+                to="softdeskApp.project",
+            ),
         ),
     ]
