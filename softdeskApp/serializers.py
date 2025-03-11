@@ -53,7 +53,6 @@ class UserSerializer(serializers.ModelSerializer):
         """
         Crée un utilisateur et chiffre le mot de passe.
         """
-        print("Données reçues dans create: ", validated_data)  # Affiche les données reçues
 
         password = validated_data.pop('password')
         user = User(**validated_data)
@@ -63,71 +62,67 @@ class UserSerializer(serializers.ModelSerializer):
 
 # 3️⃣ CONTRIBUTOR SERIALIZER
 class ContributorSerializer(serializers.ModelSerializer):
-    user = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
-    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())  # Utiliser PrimaryKeyRelatedField
+    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())  # Utiliser PrimaryKeyRelatedField
 
     class Meta:
         model = Contributor
         fields = ['id', 'user', 'project', 'role']
         extra_kwargs = {
-            'role': {'read_only': True}  # Le rôle est défini automatiquement
+            'role': {'read_only': True},  # Le rôle est défini automatiquement
         }
-
-    def validate(self, attrs):
-        """
-        Empêche l'ajout d'un même utilisateur plusieurs fois sur un projet.
-        """
-        user = attrs['user']
-        project = attrs['project']
-
-        if Contributor.objects.filter(user=user, project=project).exists():
-            raise serializers.ValidationError(f"L'utilisateur {user.username} est déjà contributeur sur ce projet.")
-
-        return attrs
 
     def create(self, validated_data):
         """
-        Crée un contributeur avec le rôle par défaut "contributor".
+        Crée un contributeur avec le rôle par défaut "contributor" ou "author".
         """
-        validated_data['role'] = Contributor.CONTRIBUTOR  # Forcer le rôle "contributor"
+        user = validated_data.get('user')
+        project = validated_data.get('project')
+
+        # Vérifier si ce contributeur existe déjà pour ce projet
+        if Contributor.objects.filter(user=user, project=project).exists():
+            raise ValidationError("Cet utilisateur est déjà un contributeur pour ce projet.")
+
+        # Créer un contributeur si il n'existe pas déjà
+        validated_data['role'] = Contributor.CONTRIBUTOR  # ou Contributor.AUTHOR selon le contexte
         return super().create(validated_data)
 
 
 class ProjectSerializer(serializers.ModelSerializer):
     author = serializers.ReadOnlyField(source='author.username')  # Afficher le nom de l'auteur
-    contributors = ContributorSerializer(source='contributors.all', many=True, read_only=True)
+    contributors = ContributorSerializer(source='contributor_set', many=True, read_only=True)  # Utiliser le related_name
 
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'type', 'author', 'contributors', 'created_at']
         read_only_fields = ['author', 'created_at', 'contributors']
 
-        # Validation pour le nom du projet (doit être unique)
-        def validate_name(self, value):
-            if not value:
-                raise serializers.ValidationError("Le nom du projet ne peut pas être vide.")
-            if Project.objects.filter(name=value).exists():
-                raise serializers.ValidationError("Un projet avec ce nom existe déjà.")
-            return value
+    # Validation pour le nom du projet (doit être unique)
+    def validate_name(self, value):
+        if not value:
+            raise serializers.ValidationError("Le nom du projet ne peut pas être vide.")
+        if Project.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Un projet avec ce nom existe déjà.")
+        return value
 
-        # Validation pour la description (si elle est nécessaire)
-        def validate_description(self, value):
-            if not value:
-                raise serializers.ValidationError("La description du projet est requise.")
-            return value
+    # Validation pour la description (si elle est nécessaire)
+    def validate_description(self, value):
+        if not value:
+            raise serializers.ValidationError("La description du projet est requise.")
+        return value
 
-        # Validation pour le type du projet (doit être l'un des choix)
-        def validate_type(self, value):
-            valid_types = [Project.BACKEND, Project.FRONTEND, Project.IOS, Project.ANDROID]
-            if value not in valid_types:
-                raise serializers.ValidationError(f"Le type doit être l'un des suivants : {', '.join(valid_types)}.")
-            return value
+    # Validation pour le type du projet (doit être l'un des choix)
+    def validate_type(self, value):
+        valid_types = [Project.BACKEND, Project.FRONTEND, Project.IOS, Project.ANDROID]
+        if value not in valid_types:
+            raise serializers.ValidationError(f"Le type doit être l'un des suivants : {', '.join(valid_types)}.")
+        return value
 
     def create(self, validated_data):
         """
         Lorsqu'un utilisateur crée un projet :
         - Il devient **l'auteur**
-        - Il est automatiquement **ajouté comme contributeur**
+        - Il est automatiquement **ajouté comme contributeur** (s'il n'existe pas déjà)
         """
         user = self.context['request'].user  # Récupérer l'utilisateur actuel
         validated_data['author'] = user  # Assigner l'auteur
@@ -135,10 +130,11 @@ class ProjectSerializer(serializers.ModelSerializer):
         # Créer le projet
         project = Project.objects.create(**validated_data)
 
-        # Ajouter l'auteur comme contributeur
-        Contributor.objects.create(user=user, project=project, role=Contributor.AUTHOR)
+        # Ajouter l'auteur comme contributeur (s'il n'existe pas déjà)
+        Contributor.objects.get_or_create(user=user, project=project, defaults={'role': Contributor.AUTHOR})
 
         return project
+
 
 
 

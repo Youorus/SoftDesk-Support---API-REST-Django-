@@ -73,11 +73,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Lors de la création d'un projet, on définit l'auteur automatiquement
         et on le lie en tant que contributeur.
         """
+        # Afficher les données envoyées dans la requête POST
+        print("Données envoyées dans le POST :", self.request.data)
+
         user = self.request.user
-        serializer.save(author=user)
-        # Ajout de l'auteur comme contributeur
-        project = serializer.instance
-        Contributor.objects.create(user=user, project=project, role=Contributor.AUTHOR)
+
+        # Vérification si les données du serializer sont valides
+        if serializer.is_valid():
+            print("Données validées :", serializer.validated_data)
+
+
+            serializer.save(author=user)
+
+            print(f"Projet créé avec succès, l'auteur {user.username} a été ajouté comme contributeur.")
+        else:
+            print("Erreurs de validation : ", serializer.errors)
 
     @action(detail=True, methods=['get'])
     def contributors(self, request, pk=None):
@@ -86,7 +96,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
         project = self.get_object()
         contributors = project.contributor_set.all()
-        # Utilisation d'un serializer pour afficher les contributeurs
         serializer = ContributorSerializer(contributors, many=True)
         return Response(serializer.data)
 
