@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt import views as jwt_views
 
 # Importation des ViewSets pour tes modèles
-from .views import UserViewSet, ProjectViewSet, IssueViewSet, ContributorViewSet, register
+from .views import UserViewSet, ProjectViewSet, IssueViewSet, ContributorViewSet, register, CommentViewSet
 
 # Désactiver l'ajout automatique du slash final
 router = DefaultRouter(trailing_slash=False)
@@ -12,6 +12,8 @@ router = DefaultRouter(trailing_slash=False)
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'projects/(?P<project_id>\d+)/issues', IssueViewSet, basename='issue')
+router.register(r'issues/(?P<issue_id>\d+)/comments', CommentViewSet, basename='comment')
+
 
 
 urlpatterns = [

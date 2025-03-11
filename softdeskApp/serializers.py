@@ -172,6 +172,24 @@ class IssueSerializer(serializers.ModelSerializer):
 
 # Serializer pour le modèle Comment
 class CommentSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(source='author.username', read_only=True)
+    issue_title = serializers.CharField(source='issue.title', read_only=True)
+
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'created_at', 'updated_at', 'author', 'issue']  # Remplace par tes champs réels
+        fields = ['id', 'content', 'issue', 'issue_title', 'author', 'author_username', 'created_at']
+        read_only_fields = ['author', 'created_at', 'author_username', 'issue_title', 'issue']
+
+    def validate_issue(self, value):
+        """
+        Valide que l'issue existe et que l'utilisateur est un contributeur du projet.
+        """
+        if not Issue.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("L'issue spécifiée n'existe pas.")
+
+        # Vérifier que l'utilisateur est un contributeur du projet associé à l'issue
+        project = value.project
+        if not Contributor.objects.filter(user=self.context['request'].user, project=project).exists():
+            raise serializers.ValidationError("Vous n'êtes pas un contributeur du projet associé à cette issue.")
+
+        return value

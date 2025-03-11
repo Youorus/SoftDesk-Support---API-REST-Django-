@@ -1,14 +1,14 @@
 
 from rest_framework import viewsets, serializers
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.exceptions import PermissionDenied, NotFound
+from rest_framework.exceptions import PermissionDenied, NotFound, ValidationError
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from softdeskApp.models import Project, User, Contributor, Issue
+from softdeskApp.models import Project, User, Contributor, Issue, Comment
 from softdeskApp.permissions import IsAuthorOrReadOnly
-from softdeskApp.serializers import ProjectSerializer, UserSerializer, ContributorSerializer, IssueSerializer
-
+from softdeskApp.serializers import ProjectSerializer, UserSerializer, ContributorSerializer, IssueSerializer, \
+    CommentSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -145,7 +145,7 @@ class ContributorViewSet(viewsets.ModelViewSet):
 class IssueViewSet(viewsets.ModelViewSet):
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
 
     def get_queryset(self):
         """
@@ -178,3 +178,40 @@ class IssueViewSet(viewsets.ModelViewSet):
 
         # Définir l'auteur et le projet
         serializer.save(author=user, project=project)
+
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+
+    def get_queryset(self):
+        """
+        Filtre les commentaires en fonction de l'issue spécifiée dans l'URL.
+        """
+        issue_id = self.kwargs.get('issue_id')
+        try:
+            Issue.objects.get(id=issue_id)
+        except Issue.DoesNotExist:
+            raise NotFound("L'issue spécifiée n'existe pas.")
+        return Comment.objects.filter(issue_id=issue_id)
+
+    def perform_create(self, serializer):
+        """
+        Crée un commentaire et définit automatiquement l'auteur et l'issue.
+        - Vérifie que l'utilisateur est un contributeur du projet associé à l'issue.
+        """
+        issue_id = self.kwargs.get('issue_id')
+        try:
+            issue = Issue.objects.get(id=issue_id)
+        except Issue.DoesNotExist:
+            raise NotFound("L'issue spécifiée n'existe pas.")
+
+        user = self.request.user
+
+        # Vérifier que l'utilisateur est un contributeur du projet associé à l'issue
+        project = issue.project
+        if not Contributor.objects.filter(user=user, project=project).exists():
+            raise ValidationError("Vous n'êtes pas un contributeur du projet associé à cette issue.")
+
+        # Définir l'auteur et l'issue
+        serializer.save(author=user, issue=issue)
