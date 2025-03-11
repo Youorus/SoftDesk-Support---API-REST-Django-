@@ -137,6 +137,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class IssueSerializer(serializers.ModelSerializer):
+    project = serializers.PrimaryKeyRelatedField(read_only=True)  # Ne pas inclure dans les données de la requête
     assignee_username = serializers.CharField(source='assignee.username', read_only=True)
     project_name = serializers.CharField(source='project.name', read_only=True)
     author_username = serializers.CharField(source='author.username', read_only=True)

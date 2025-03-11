@@ -1,7 +1,7 @@
 
 from rest_framework import viewsets, serializers
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, NotFound
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -123,7 +123,7 @@ class ContributorViewSet(viewsets.ModelViewSet):
     """
     queryset = Contributor.objects.all()
     serializer_class = ContributorSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
 
     def get_queryset(self):
         """
@@ -143,11 +143,6 @@ class ContributorViewSet(viewsets.ModelViewSet):
 
 
 class IssueViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les issues.
-    - Seuls les contributeurs du projet peuvent créer, modifier ou supprimer des issues.
-    - Les autres utilisateurs peuvent uniquement lire les issues.
-    """
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
     permission_classes = [IsAuthenticated]
@@ -157,15 +152,23 @@ class IssueViewSet(viewsets.ModelViewSet):
         Filtre les issues en fonction du projet spécifié dans l'URL.
         """
         project_id = self.kwargs.get('project_id')
+        try:
+            Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            raise NotFound("Le projet spécifié n'existe pas.")
         return Issue.objects.filter(project_id=project_id)
 
     def perform_create(self, serializer):
         """
-        Crée une issue et définit automatiquement l'auteur.
+        Crée une issue et définit automatiquement l'auteur et le projet.
         - Vérifie que l'assignee est un contributeur du projet.
         """
         project_id = self.kwargs.get('project_id')
-        project = Project.objects.get(id=project_id)
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            raise NotFound("Le projet spécifié n'existe pas.")
+
         user = self.request.user
 
         # Vérifier que l'assignee est un contributeur du projet
@@ -175,18 +178,3 @@ class IssueViewSet(viewsets.ModelViewSet):
 
         # Définir l'auteur et le projet
         serializer.save(author=user, project=project)
-
-    @action(detail=True, methods=['patch'])
-    def update_status(self, request, pk=None):
-        """
-        Met à jour le statut d'une issue.
-        """
-        issue = self.get_object()
-        new_status = request.data.get('status')
-
-        if new_status not in dict(Issue.STATUS_CHOICES).keys():
-            return Response({"detail": "Statut invalide."}, status=status.HTTP_400_BAD_REQUEST)
-
-        issue.status = new_status
-        issue.save()
-        return Response({"detail": "Statut mis à jour avec succès."}, status=status.HTTP_200_OK)

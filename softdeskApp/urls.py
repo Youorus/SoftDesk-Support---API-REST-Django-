@@ -11,7 +11,7 @@ router = DefaultRouter(trailing_slash=False)
 # Enregistrement des ViewSets pour chaque modèle
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'projects', ProjectViewSet, basename='project')
-router.register(r'issues', IssueViewSet, basename='issue')
+router.register(r'projects/(?P<project_id>\d+)/issues', IssueViewSet, basename='issue')
 
 
 urlpatterns = [
