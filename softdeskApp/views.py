@@ -29,12 +29,7 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Un utilisateur voit uniquement son propre profil sauf s'il est admin.
-        """
-        if self.request.user.is_staff:
             return User.objects.all()
-        return User.objects.filter(id=self.request.user.id)
 
     def perform_update(self, serializer):
         """
