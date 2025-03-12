@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
-    'rest_framework_simplejwt.token_blacklist',
     "softdeskApp",
 ]
 
@@ -56,8 +55,8 @@ SIMPLE_JWT = {
         minutes=60
     ),  # Durée de validité du token d'accès
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),  # Durée de validité du refresh token
-    "ROTATE_REFRESH_TOKENS": True,  # Pas de rotation des refresh tokens
-    "BLACKLIST_AFTER_ROTATION": True,  # Option pour lister les tokens invalidés
+    "ROTATE_REFRESH_TOKENS": False,  # Pas de rotation des refresh tokens
+    "BLACKLIST_AFTER_ROTATION": False,  # Option pour lister les tokens invalidés
     "USER_ID_FIELD": "id",  # S'assurer que Django comprend que l'ID est un UUID
     "USER_ID_CLAIM": "user_id",  # JWT inclut l'UUID correct
     "AUTH_HEADER_TYPES": ("Bearer",),
